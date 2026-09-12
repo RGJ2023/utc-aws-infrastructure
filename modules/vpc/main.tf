@@ -3,12 +3,12 @@ resource "aws_vpc" "this" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = { Name = "utc-vpc" }
+  tags = { Name = "${var.environment}-vpc" }
 }
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
-  tags   = { Name = "utc-igw" }
+  tags   = { Name = "${var.environment}-igw" }
 }
 
 # Public Subnets
@@ -19,7 +19,7 @@ resource "aws_subnet" "public" {
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
 
-  tags = { Name = "Public Subnet 1${substr(var.availability_zones[count.index], -1, 1)}" }
+  tags = { Name = "${var.environment}-public-subnet-${substr(var.availability_zones[count.index], -1, 1)}" }
 }
 
 # Private App Subnets
@@ -29,7 +29,7 @@ resource "aws_subnet" "private_app" {
   cidr_block        = var.private_app_cidrs[count.index]
   availability_zone = var.availability_zones[count.index]
 
-  tags = { Name = "Private Subnet 1${substr(var.availability_zones[count.index], -1, 1)} (App)" }
+  tags = { Name = "${var.environment}-private-app-subnet-${substr(var.availability_zones[count.index], -1, 1)}" }
 }
 
 # Private DB Subnets
@@ -39,19 +39,21 @@ resource "aws_subnet" "private_db" {
   cidr_block        = var.private_db_cidrs[count.index]
   availability_zone = var.availability_zones[count.index]
 
-  tags = { Name = "Private Subnet 1${substr(var.availability_zones[count.index], -1, 1)} (DB)" }
+  tags = { Name = "${var.environment}-private-db-subnet-${substr(var.availability_zones[count.index], -1, 1)}" }
 }
 
-# Single NAT Gateway in Public Subnet 1a for dev/test
+# Single NAT Gateway in Public Subnet 0
 resource "aws_eip" "nat" {
   domain = "vpc"
-  tags   = { Name = "utc-nat-eip" }
+  tags   = { Name = "${var.environment}-nat-eip" }
 }
 
 resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
-  tags          = { Name = "utc-single-nat-gw" }
+  tags          = { Name = "${var.environment}-nat-gw" }
+
+  depends_on = [aws_internet_gateway.this]
 }
 
 # Route Tables
@@ -63,7 +65,7 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.this.id
   }
 
-  tags = { Name = "utc-public-rt" }
+  tags = { Name = "${var.environment}-public-rt" }
 }
 
 resource "aws_route_table" "private" {
@@ -74,7 +76,7 @@ resource "aws_route_table" "private" {
     nat_gateway_id = aws_nat_gateway.this.id
   }
 
-  tags = { Name = "utc-private-rt" }
+  tags = { Name = "${var.environment}-private-rt" }
 }
 
 # Route Table Associations

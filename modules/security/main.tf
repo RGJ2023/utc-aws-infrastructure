@@ -36,14 +36,6 @@ resource "aws_security_group" "bastion" {
   tags        = { Name = "Bastion-host-SG" }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "bastion_ssh" {
-  security_group_id = aws_security_group.bastion.id
-  cidr_ipv4         = var.my_ip_cidr
-  from_port         = 22
-  to_port           = 22
-  ip_protocol       = "tcp"
-}
-
 resource "aws_vpc_security_group_egress_rule" "bastion_egress" {
   security_group_id = aws_security_group.bastion.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -100,4 +92,11 @@ resource "aws_vpc_security_group_egress_rule" "db_egress" {
   security_group_id = aws_security_group.db.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
+}
+resource "aws_vpc_security_group_egress_rule" "app_outbound_https" {
+  security_group_id = aws_security_group.app.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
 }

@@ -6,7 +6,6 @@ variable "aws_region" {
 
 variable "environment" {
   type        = string
-  default     = "dev"
   description = "Deployment Environment"
 }
 
@@ -31,13 +30,28 @@ variable "ami_id" {
   description = "AMI ID for EC2 instances (App and Bastion)"
 }
 
-variable "db_password" {
-  type        = string
-  sensitive   = true
-  description = "Master password for RDS MySQL instance"
-}
 
 variable "notification_email" {
   type        = string
   description = "Email address to receive Auto Scaling alarms"
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "The IPv4 CIDR block for the VPC"
+}
+
+variable "public_subnet_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks for public subnets"
+}
+
+variable "private_app_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks for private application subnets"
+}
+
+variable "private_db_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks for private database subnets"
 }

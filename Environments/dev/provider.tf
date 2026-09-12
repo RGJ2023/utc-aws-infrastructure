@@ -13,7 +13,7 @@ provider "aws" {
   default_tags {
     tags = {
       Environment = var.environment
-      Project     = "utc-application"
+      Project     = "dev-utc-application"
       ManagedBy   = "Terraform"
     }
   }
