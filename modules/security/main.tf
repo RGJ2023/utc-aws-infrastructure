@@ -1,9 +1,15 @@
-# ALB Security Group
+# ------------------------------------------------------------------------------
+# 1. ALB Security Group
+# ------------------------------------------------------------------------------
 resource "aws_security_group" "alb" {
-  name        = "ALB-SG"
+  name        = "${var.environment}-alb-sg"
   description = "Allow HTTP/HTTPS from Internet"
   vpc_id      = var.vpc_id
-  tags        = { Name = "ALB-SG" }
+
+  tags = {
+    Name        = "${var.environment}-alb-sg"
+    Environment = var.environment
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
@@ -28,26 +34,46 @@ resource "aws_vpc_security_group_egress_rule" "alb_egress" {
   ip_protocol       = "-1"
 }
 
-# Bastion Security Group
-resource "aws_security_group" "bastion" {
-  name        = "Bastion-host-SG"
-  description = "Allow SSH from specific IP"
-  vpc_id      = var.vpc_id
-  tags        = { Name = "Bastion-host-SG" }
-}
+# ------------------------------------------------------------------------------
+# 2. Bastion Host Security Group
+# ------------------------------------------------------------------------------
+# resource "aws_security_group" "bastion" {
+#   name        = "${var.environment}-bastion-sg"
+#   description = "Allow SSH from specific management IP"
+#   vpc_id      = var.vpc_id
 
-resource "aws_vpc_security_group_egress_rule" "bastion_egress" {
-  security_group_id = aws_security_group.bastion.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
-}
+#   tags = {
+#     Name        = "${var.environment}-bastion-sg"
+#     Environment = var.environment
+#   }
+# }
 
-# App Security Group
+# resource "aws_vpc_security_group_ingress_rule" "bastion_ssh" {
+#   security_group_id = aws_security_group.bastion.id
+#   cidr_ipv4         = var.my_ip_cidr
+#   from_port         = 22
+#   to_port           = 22
+#   ip_protocol       = "tcp"
+# }
+
+# resource "aws_vpc_security_group_egress_rule" "bastion_egress" {
+#   security_group_id = aws_security_group.bastion.id
+#   cidr_ipv4         = "0.0.0.0/0"
+#   ip_protocol       = "-1"
+# }
+
+# ------------------------------------------------------------------------------
+# 3. Application Security Group
+# ------------------------------------------------------------------------------
 resource "aws_security_group" "app" {
-  name        = "App-server-SG"
+  name        = "${var.environment}-app-sg"
   description = "Allow HTTP from ALB and SSH from Bastion"
   vpc_id      = var.vpc_id
-  tags        = { Name = "App-server-SG" }
+
+  tags = {
+    Name        = "${var.environment}-app-sg"
+    Environment = var.environment
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "app_http_from_alb" {
@@ -58,33 +84,41 @@ resource "aws_vpc_security_group_ingress_rule" "app_http_from_alb" {
   ip_protocol                  = "tcp"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "app_ssh_from_bastion" {
-  security_group_id            = aws_security_group.app.id
-  referenced_security_group_id = aws_security_group.bastion.id
-  from_port                    = 22
-  to_port                      = 22
-  ip_protocol                  = "tcp"
-}
+# resource "aws_vpc_security_group_ingress_rule" "app_ssh_from_bastion" {
+#   security_group_id            = aws_security_group.app.id
+#   referenced_security_group_id = aws_security_group.bastion.id
+#   from_port                    = 22
+#   to_port                      = 22
+#   ip_protocol                  = "tcp"
+# }
 
+# Single full egress rule for app instances (pulling packages, updates, S3/CloudWatch traffic)
 resource "aws_vpc_security_group_egress_rule" "app_egress" {
   security_group_id = aws_security_group.app.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 }
 
-# Database Security Group
+# ------------------------------------------------------------------------------
+# 4. Database Security Group
+# ------------------------------------------------------------------------------
 resource "aws_security_group" "db" {
-  name        = "Database-SG"
-  description = "Allow MySQL from App Servers"
+  name        = "${var.environment}-db-sg"
+  description = "Allow Database traffic from App Servers"
   vpc_id      = var.vpc_id
-  tags        = { Name = "Database-SG" }
+
+  tags = {
+    Name        = "${var.environment}-db-sg"
+    Environment = var.environment
+  }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "db_mysql_from_app" {
+# Ingress: Supports MySQL (3306) or PostgreSQL (5432) via variable
+resource "aws_vpc_security_group_ingress_rule" "db_from_app" {
   security_group_id            = aws_security_group.db.id
   referenced_security_group_id = aws_security_group.app.id
-  from_port                    = 3306
-  to_port                      = 3306
+  from_port                    = var.db_port
+  to_port                      = var.db_port
   ip_protocol                  = "tcp"
 }
 
@@ -92,11 +126,4 @@ resource "aws_vpc_security_group_egress_rule" "db_egress" {
   security_group_id = aws_security_group.db.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
-}
-resource "aws_vpc_security_group_egress_rule" "app_outbound_https" {
-  security_group_id = aws_security_group.app.id
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
 }

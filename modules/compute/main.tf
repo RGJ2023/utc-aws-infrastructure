@@ -40,19 +40,19 @@ resource "aws_cloudwatch_log_group" "user_data_logs" {
   retention_in_days = 30
 }
 
-# Bastion Host Instance
-resource "aws_instance" "bastion" {
-  ami                  = var.ami_id
-  instance_type        = var.instance_type
-  subnet_id            = var.public_subnet_1a_id
-  vpc_security_group_ids = [var.bastion_sg_id]
-  iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
+# # Bastion Host Instance
+# resource "aws_instance" "bastion" {
+#   ami                  = var.ami_id
+#   instance_type        = var.instance_type
+#   subnet_id            = var.public_subnet_1a_id
+#   vpc_security_group_ids = [var.bastion_sg_id]
+#   iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
 
-  tags = { 
-    Name        = "${var.environment}-bastion-host" 
-    Environment = var.environment
-  }
-}
+#   tags = { 
+#     Name        = "${var.environment}-bastion-host" 
+#     Environment = var.environment
+#   }
+# }
 
 # App Launch Template
 resource "aws_launch_template" "app" {
@@ -129,9 +129,9 @@ resource "aws_autoscaling_group" "app" {
   name                = "${var.environment}-asg"
   vpc_zone_identifier = var.private_app_subnets
   target_group_arns   = [var.target_group_arn]
-  min_size            = 2
-  max_size            = 6
-  desired_capacity    = 3
+  min_size         = var.environment == "prod" ? 2 : 1
+  max_size         = var.environment == "prod" ? 6 : 2
+  desired_capacity = var.environment == "prod" ? 3 : 1
 
   launch_template {
     id      = aws_launch_template.app.id
@@ -146,6 +146,15 @@ resource "aws_autoscaling_group" "app" {
 resource "aws_autoscaling_policy" "scale_out" {
   name                   = "${var.environment}-high-cpu-scale-out"
   scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.app.name
+}
+
+# Scale In Policy (-1 Instance)
+resource "aws_autoscaling_policy" "scale_in" {
+  name                   = "${var.environment}-low-cpu-scale-in"
+  scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
   autoscaling_group_name = aws_autoscaling_group.app.name

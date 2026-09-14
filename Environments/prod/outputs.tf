@@ -8,10 +8,10 @@ output "application_url" {
   description = "Full URL for the deployed application"
 }
 
-output "bastion_public_ip" {
-  value       = module.compute.bastion_public_ip
-  description = "Public IP address of the Bastion Host"
-}
+# output "bastion_public_ip" {
+#   value       = module.compute.bastion_public_ip
+#   description = "Public IP address of the Bastion Host"
+# }
 
 output "database_endpoint" {
   value       = module.database.db_endpoint

@@ -3,9 +3,15 @@ data "aws_route53_zone" "existing" {
   private_zone = false
 }
 
+# ACM Certificate with DNS Validation
 resource "aws_acm_certificate" "this" {
-  domain_name       = "${var.subdomain}.${var.domain_name}"
+  domain_name       = var.subdomain != "" ? "${var.subdomain}.${var.domain_name}" : "${var.environment}.${var.domain_name}"
   validation_method = "DNS"
+
+  tags = {
+    Name        = "${var.environment}-acm-cert"
+    Environment = var.environment
+  }
 
   lifecycle {
     create_before_destroy = true
@@ -36,17 +42,20 @@ resource "aws_acm_certificate_validation" "this" {
 
 # ALB Infrastructure
 resource "aws_lb" "this" {
-  name               = "utc-alb"
+  name               = "${var.environment}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [var.alb_sg_id]
   subnets            = var.public_subnet_ids
 
-  tags = { Name = "utc-alb" }
+  tags = {
+    Name        = "${var.environment}-alb"
+    Environment = var.environment
+  }
 }
 
 resource "aws_lb_target_group" "this" {
-  name     = "utc-target-group"
+  name     = "${var.environment}-app-tg"
   port     = 80
   protocol = "HTTP"
   vpc_id   = var.vpc_id
@@ -54,11 +63,20 @@ resource "aws_lb_target_group" "this" {
   health_check {
     path                = "/"
     protocol            = "HTTP"
-    matcher             = "200,301,302" # Allow redirects if your app redirects HTTP"
+    matcher             = "200,301,302"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 3
     unhealthy_threshold = 3
+  }
+
+  tags = {
+    Name        = "${var.environment}-app-tg"
+    Environment = var.environment
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -91,10 +109,10 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# Route 53 Alias Record pointing to ALB
+# Route 53 Alias Record
 resource "aws_route53_record" "alb_alias" {
   zone_id = data.aws_route53_zone.existing.zone_id
-  name    = "${var.subdomain}.${var.domain_name}"
+  name    = var.subdomain != "" ? "${var.subdomain}.${var.domain_name}" : "${var.environment}.${var.domain_name}"
   type    = "A"
 
   alias {
